@@ -1,0 +1,26 @@
+Source: cast-desktop-go
+Section: video
+Priority: optional
+Maintainer: Frank Currie <fkcurrie@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), golang-go (>= 1.21)
+Standards-Version: 4.7.0
+Homepage: https://github.com/fkcurrie/cast-desktop-go
+Vcs-Browser: https://github.com/fkcurrie/cast-desktop-go
+Vcs-Git: https://github.com/fkcurrie/cast-desktop-go.git
+Rules-Requires-Root: no
+
+Package: cast-desktop-go
+Architecture: any
+Depends: ${misc:Depends},
+         ffmpeg,
+         python3,
+         python3-gi,
+         python3-cairo,
+         gir1.2-gtk-3.0,
+         libnotify-bin,
+         kdialog | zenity
+Recommends: va-driver-all, mesa-va-drivers
+Description: Chromecast Desktop Streamer for Linux
+ High-performance screen and audio casting utility for Google Chromecast
+ devices with AMD VA-API hardware acceleration, web remote, tray icon,
+ latency presets, monitor/window selector, privacy border, and volume controls.

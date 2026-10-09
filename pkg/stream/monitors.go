@@ -117,8 +117,15 @@ func DetectWindows(display string) ([]WindowInfo, error) {
 	return windows, nil
 }
 
+var hexIDRe = regexp.MustCompile(`^0x[0-9a-fA-F]+$`)
+
 // GetWindowInfo extracts window title, state, and coordinates using xwininfo.
 func GetWindowInfo(display string, winID string) (*WindowInfo, error) {
+	winID = strings.TrimSpace(winID)
+	if !hexIDRe.MatchString(winID) {
+		return nil, fmt.Errorf("invalid window hex ID format: %s", winID)
+	}
+
 	cmd := exec.Command("xwininfo", "-display", display, "-id", winID)
 	out, err := cmd.Output()
 	if err != nil {

@@ -1,0 +1,33 @@
+app-id: io.github.fkcurrie.CastDesktop
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: cast-desktop-go
+finish-args:
+  # X11 display capture
+  - --socket=x11
+  - --share=ipc
+  # PulseAudio / PipeWire audio capture
+  - --socket=pulseaudio
+  # Network access for casting stream and discovery
+  - --share=network
+  # System Tray (StatusNotifierItem)
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=com.canonical.AppMenu.Registrar
+  # DRI Hardware Acceleration (VA-API)
+  - --device=dri
+
+modules:
+  - name: cast-desktop-go
+    buildsystem: simple
+    build-commands:
+      - go build -ldflags="-s -w -X 'cast-desktop-go/cmd.Version=1.2.0'" -o /app/bin/cast-desktop-go main.go
+      - ln -sf cast-desktop-go /app/bin/cast-go
+      - install -D -m 0644 assets/cast-desktop.desktop /app/share/applications/io.github.fkcurrie.CastDesktop.desktop
+      - install -D -m 0644 assets/io.github.fkcurrie.cast-desktop-go.metainfo.xml /app/share/metainfo/io.github.fkcurrie.CastDesktop.metainfo.xml
+      - install -D -m 0644 assets/icons/scalable/cast-desktop.svg /app/share/icons/hicolor/scalable/apps/io.github.fkcurrie.CastDesktop.svg
+      - install -D -m 0755 scripts/border_overlay.py /app/share/cast-desktop-go/border_overlay.py
+    sources:
+      - type: dir
+        path: ../..

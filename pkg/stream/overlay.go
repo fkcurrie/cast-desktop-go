@@ -15,10 +15,26 @@ type Overlay struct {
 
 // StartPrivacyOverlay launches the click-through border overlay process.
 func StartPrivacyOverlay(display string, x, y, w, h int) *Overlay {
-	scriptPaths := []string{
+	var scriptPaths []string
+
+	// Check standard distribution installation path first
+	scriptPaths = append(scriptPaths,
 		"/usr/share/cast-desktop-go/border_overlay.py",
-		filepath.Join(os.Getenv("HOME"), "Projects", "cast-desktop-go", "scripts", "border_overlay.py"),
+		"/usr/local/share/cast-desktop-go/border_overlay.py",
+	)
+
+	// Check relative to current executable
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		scriptPaths = append(scriptPaths,
+			filepath.Join(exeDir, "..", "share", "cast-desktop-go", "border_overlay.py"),
+			filepath.Join(exeDir, "..", "scripts", "border_overlay.py"),
+			filepath.Join(exeDir, "scripts", "border_overlay.py"),
+		)
 	}
+
+	// Check relative to current working directory
+	scriptPaths = append(scriptPaths, "scripts/border_overlay.py")
 
 	var scriptPath string
 	for _, p := range scriptPaths {

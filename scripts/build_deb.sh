@@ -26,6 +26,9 @@ mkdir -p "${BUILD_ROOT}/DEBIAN"
 mkdir -p "${BUILD_ROOT}/usr/bin"
 mkdir -p "${BUILD_ROOT}/usr/share/cast-desktop-go"
 mkdir -p "${BUILD_ROOT}/usr/share/applications"
+mkdir -p "${BUILD_ROOT}/usr/share/metainfo"
+mkdir -p "${BUILD_ROOT}/usr/share/man/man1"
+mkdir -p "${BUILD_ROOT}/usr/share/doc/${PKG_NAME}"
 mkdir -p "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps"
 
 # 3. Write DEBIAN control file
@@ -35,8 +38,10 @@ Version: ${PKG_VERSION}
 Section: video
 Priority: optional
 Architecture: ${PKG_ARCH}
-Maintainer: fcurrie <fcurrie@localhost>
+Maintainer: Frank Currie <fkcurrie@users.noreply.github.com>
 Depends: ffmpeg, python3, python3-gi, python3-cairo, gir1.2-gtk-3.0, libnotify-bin, kdialog | zenity
+Recommends: va-driver-all, mesa-va-drivers
+Homepage: https://github.com/fkcurrie/cast-desktop-go
 Description: Chromecast Desktop Streamer for Linux
  High-performance screen and audio casting utility for Google Chromecast
  devices with AMD VA-API hardware acceleration, web remote, tray icon,
@@ -102,7 +107,25 @@ echo "--> Installing desktop file..."
 cp "${ROOT_DIR}/assets/cast-desktop.desktop" "${BUILD_ROOT}/usr/share/applications/cast-desktop.desktop"
 chmod 644 "${BUILD_ROOT}/usr/share/applications/cast-desktop.desktop"
 
-# 8. Install icons
+# 8. Install AppStream metainfo
+echo "--> Installing AppStream metadata..."
+cp "${ROOT_DIR}/assets/io.github.fkcurrie.cast-desktop-go.metainfo.xml" "${BUILD_ROOT}/usr/share/metainfo/io.github.fkcurrie.cast-desktop-go.metainfo.xml"
+chmod 644 "${BUILD_ROOT}/usr/share/metainfo/io.github.fkcurrie.cast-desktop-go.metainfo.xml"
+
+# 9. Install documentation, changelog, and copyright
+echo "--> Installing documentation, copyright and changelog..."
+cp "${ROOT_DIR}/debian/copyright" "${BUILD_ROOT}/usr/share/doc/${PKG_NAME}/copyright"
+chmod 644 "${BUILD_ROOT}/usr/share/doc/${PKG_NAME}/copyright"
+gzip -9nc "${ROOT_DIR}/debian/changelog" > "${BUILD_ROOT}/usr/share/doc/${PKG_NAME}/changelog.gz"
+chmod 644 "${BUILD_ROOT}/usr/share/doc/${PKG_NAME}/changelog.gz"
+
+# 10. Install manpage
+echo "--> Installing manual page..."
+gzip -9nc "${ROOT_DIR}/assets/cast-desktop-go.1" > "${BUILD_ROOT}/usr/share/man/man1/cast-desktop-go.1.gz"
+ln -sf "cast-desktop-go.1.gz" "${BUILD_ROOT}/usr/share/man/man1/cast-go.1.gz"
+chmod 644 "${BUILD_ROOT}/usr/share/man/man1/cast-desktop-go.1.gz"
+
+# 11. Install icons
 echo "--> Installing icons..."
 cp "${ROOT_DIR}/assets/icons/scalable/cast-desktop.svg" "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps/cast-desktop.svg"
 ln -sf "cast-desktop.svg" "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps/cast-desktop-go.svg"
@@ -117,12 +140,15 @@ for size in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512; do
     fi
 done
 
-# 9. Install helper scripts (privacy border overlay)
+# 12. Install helper scripts (privacy border overlay)
 echo "--> Installing overlay scripts..."
 cp "${ROOT_DIR}/scripts/border_overlay.py" "${BUILD_ROOT}/usr/share/cast-desktop-go/border_overlay.py"
 chmod 755 "${BUILD_ROOT}/usr/share/cast-desktop-go/border_overlay.py"
 
-# 10. Build Debian package
+# 13. Ensure standard directory and file permissions
+find "${BUILD_ROOT}" -type d -exec chmod 0755 {} +
+
+# 14. Build Debian package
 echo "--> Packaging with dpkg-deb..."
 dpkg-deb --root-owner-group --build "${BUILD_ROOT}" "${OUTPUT_DIR}/${DEB_NAME}"
 

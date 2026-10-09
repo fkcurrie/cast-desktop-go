@@ -54,10 +54,10 @@ func LoadConfig() *Config {
 
 // SaveConfig persists user preferences to disk.
 func SaveConfig(cfg *Config) error {
-	_ = os.MkdirAll(configDir, 0755)
+	_ = os.MkdirAll(configDir, 0700)
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configFile, data, 0644)
+	return os.WriteFile(configFile, data, 0600)
 }

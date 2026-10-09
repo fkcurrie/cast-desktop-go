@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.fkcurrie.cast-desktop-go</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Cast Desktop</name>
+  <summary>Stream Linux desktop and audio to Chromecast devices</summary>
+  <description>
+    <p>
+      Cast Desktop is a high-performance utility for streaming your Linux desktop display and PipeWire/PulseAudio sound to Google Chromecast, Android TV, and Google Cast-enabled speakers.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Fragmented MP4 (fMP4/CMAF) HTTP Live Streaming optimized for modern Google TV and Chromecast receivers.</li>
+      <li>Hardware-accelerated video encoding via VA-API on AMD and Intel GPUs.</li>
+      <li>Configurable latency presets: Ultra-Low (0.5s), Balanced (1.0s), and Cinema (2.0s).</li>
+      <li>Multi-monitor and individual application window capture.</li>
+      <li>Audio-only casting to smart speakers and Google Home.</li>
+      <li>System tray StatusNotifierItem integration with volume scroll and playback controls.</li>
+      <li>Responsive HTML5 Web Remote and QR code generator for smartphone control.</li>
+      <li>Visual glowing border overlay framing active screen capture areas.</li>
+      <li>Native desktop menu integration and global keyboard shortcuts.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">cast-desktop.desktop</launchable>
+  <url type="homepage">https://github.com/fkcurrie/cast-desktop-go</url>
+  <url type="bugtracker">https://github.com/fkcurrie/cast-desktop-go/issues</url>
+  <developer id="io.github.fkcurrie">
+    <name>Frank Currie</name>
+  </developer>
+  <provides>
+    <binary>cast-desktop-go</binary>
+    <binary>cast-go</binary>
+  </provides>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Video</category>
+    <category>Network</category>
+  </categories>
+  <releases>
+    <release version="1.2.0" date="2026-10-09">
+      <description>
+        <p>Implemented VA-API hardware acceleration, system tray icon, web remote, latency presets, multi-monitor/window selector, and TV controls.</p>
+      </description>
+    </release>
+    <release version="1.1.0" date="2026-10-08">
+      <description>
+        <p>Added desktop menu launcher, custom branding logo, and Debian packaging.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>

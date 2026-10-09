@@ -1,0 +1,16 @@
+cast-desktop-go (1.2.0-1) unstable; urgency=medium
+
+  * Initial release for Linux Mint and Ubuntu.
+  * Implement fragmented MP4 (fMP4/CMAF) HTTP Live Streaming for modern
+    Chromecast receivers.
+  * Add AMD/Intel VA-API hardware-accelerated video encoding.
+  * Add System Tray / StatusNotifierItem with volume scroll and controls.
+  * Add responsive mobile Web Remote with scannable QR code.
+  * Add latency presets (ultra-low, balanced, cinema).
+  * Add multi-monitor and single-window capture options.
+  * Add audio-only streaming mode for smart speakers and Google Home.
+  * Add TV volume, mute, and playback CLI and D-Bus controls.
+  * Add visual glowing border overlay for screen capture areas.
+  * Add XDG desktop menu integration and global keyboard shortcuts.
+
+ -- Frank Currie <fkcurrie@users.noreply.github.com>  Fri, 09 Oct 2026 02:00:00 -0400

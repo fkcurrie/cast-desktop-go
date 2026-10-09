@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +16,23 @@ import (
 )
 
 const StreamDir = "/dev/shm/cast_desktop_go"
+
+// isAllowedAPIOrigin protects control endpoints against cross-origin attacks (CSRF).
+func isAllowedAPIOrigin(r *http.Request) bool {
+	if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true // Native CLI and local tools don't set Origin
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	h := u.Hostname()
+	return h == "localhost" || h == "127.0.0.1" || strings.HasPrefix(h, "192.168.") || strings.HasPrefix(h, "10.") || strings.HasPrefix(h, "172.")
+}
 
 // RemoteHandler provides callbacks for the Web Remote and API endpoints.
 type RemoteHandler struct {
@@ -122,6 +140,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Volume
 	mux.HandleFunc("/api/volume", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -159,6 +181,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Mute
 	mux.HandleFunc("/api/mute", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -190,6 +216,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Pause
 	mux.HandleFunc("/api/pause", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -208,6 +238,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Play
 	mux.HandleFunc("/api/play", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -226,6 +260,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Stop
 	mux.HandleFunc("/api/stop", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -258,6 +296,10 @@ func NewServer(port int, localIP string) (*Server, error) {
 
 	// API Switch
 	mux.HandleFunc("/api/switch", func(w http.ResponseWriter, r *http.Request) {
+		if !isAllowedAPIOrigin(r) {
+			http.Error(w, "Forbidden: cross-origin API request", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -287,6 +329,12 @@ func NewServer(port int, localIP string) (*Server, error) {
 		// If a browser visits the root URL directly, redirect to /remote
 		if (r.URL.Path == "/" || r.URL.Path == "") && strings.Contains(r.Header.Get("Accept"), "text/html") {
 			http.Redirect(w, r, "/remote", http.StatusTemporaryRedirect)
+			return
+		}
+
+		// Block directory listing
+		if strings.HasSuffix(r.URL.Path, "/") && r.URL.Path != "/" {
+			http.NotFound(w, r)
 			return
 		}
 

@@ -31,12 +31,12 @@ type State struct {
 
 // SaveState writes active session state to disk.
 func SaveState(st *State) error {
-	_ = os.MkdirAll(configDir, 0755)
+	_ = os.MkdirAll(configDir, 0700)
 	data, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(stateFile, data, 0644)
+	return os.WriteFile(stateFile, data, 0600)
 }
 
 // LoadState reads the active session state from disk.

@@ -1,0 +1,71 @@
+.TH CAST-DESKTOP-GO 1 "October 2026" "cast-desktop-go 1.2.0" "User Commands"
+.SH NAME
+cast-desktop-go \- stream Linux desktop and audio to Chromecast devices
+.SH SYNOPSIS
+.B cast-desktop-go
+[\fIOPTIONS\fR] [\fICOMMAND\fR]
+.SH DESCRIPTION
+.B cast-desktop-go
+is a high-performance utility for streaming the Linux desktop display and audio (X11 & PipeWire/PulseAudio) to Google Chromecast, Android TV, and Google Home smart speakers over low-latency HTTP Live Streaming with Fragmented MP4 (fMP4/CMAF).
+.SH COMMANDS
+.TP
+\fBstart\fR
+Start casting the desktop display and audio.
+.TP
+\fBstop\fR
+Stop active casting session and return Chromecast to ambient backdrop.
+.TP
+\fBstatus\fR
+Display current streaming status, device, uptime, and HTTP server URL.
+.TP
+\fBgui\fR
+Launch the graphical interactive launcher dialog (KDE kdialog / Zenity).
+.TP
+\fBvolume\fR [\fI0-100\fR | \fI+N\fR | \fI-N\fR]
+Get or set Chromecast TV volume level.
+.TP
+\fBmute\fR [\fItrue\fR | \fIfalse\fR | \fItoggle\fR]
+Toggle or set Chromecast TV mute state.
+.TP
+\fBpause\fR
+Pause Chromecast playback stream.
+.TP
+\fBplay\fR
+Resume Chromecast playback stream.
+.TP
+\fBshortcuts\fR [\fIinstall\fR | \fIlist\fR | \fIremove\fR]
+Manage global desktop keyboard shortcuts.
+.TP
+\fBconfig\fR [\fIget\fR | \fIset\fR | \fIshow\fR | \fIreset\fR]
+Inspect or modify persistent configuration.
+.SH OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-device\fR \fINAME|IP|INDEX\fR
+Specify target Chromecast device.
+.TP
+\fB\-m\fR, \fB\-\-monitor\fR \fINAME|INDEX\fR
+Capture a specific monitor in multi-head setups.
+.TP
+\fB\-w\fR, \fB\-\-window\fR \fITITLE|HEX_ID\fR
+Capture only a specific application window.
+.TP
+\fB\-\-preset\fR \fIultra-low|balanced|cinema\fR
+Latency optimization preset (default: balanced).
+.TP
+\fB\-\-hw-accel\fR \fIauto|vaapi|software\fR
+Hardware video encoding acceleration (default: auto).
+.TP
+\fB\-\-audio-only\fR
+Stream audio only for smart speakers.
+.TP
+\fB\-b\fR, \fB\-\-daemon\fR
+Run casting session in the background.
+.TP
+\fB\-p\fR, \fB\-\-port\fR \fIPORT\fR
+HTTP streaming server port (default: 8088).
+.SH AUTHOR
+Frank Currie <fkcurrie@users.noreply.github.com>
+.SH REPORTING BUGS
+Report bugs at https://github.com/fkcurrie/cast-desktop-go/issues
+.SH COPYRIGHT
+Copyright \(co 2026 Frank Currie. Released under the MIT License.

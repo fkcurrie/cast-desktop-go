@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export CGO_ENABLED = 0
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	go build -ldflags="-s -w -X 'cast-desktop-go/cmd.Version=1.2.0'" -o bin/cast-desktop-go main.go
+
+override_dh_auto_install:
+	install -D -m 0755 bin/cast-desktop-go debian/cast-desktop-go/usr/bin/cast-desktop-go
+	ln -sf cast-desktop-go debian/cast-desktop-go/usr/bin/cast-go
+	install -D -m 0644 assets/cast-desktop.desktop debian/cast-desktop-go/usr/share/applications/cast-desktop.desktop
+	install -D -m 0644 assets/io.github.fkcurrie.cast-desktop-go.metainfo.xml debian/cast-desktop-go/usr/share/metainfo/io.github.fkcurrie.cast-desktop-go.metainfo.xml
+	install -D -m 0755 scripts/border_overlay.py debian/cast-desktop-go/usr/share/cast-desktop-go/border_overlay.py
+	install -D -m 0644 assets/icons/scalable/cast-desktop.svg debian/cast-desktop-go/usr/share/icons/hicolor/scalable/apps/cast-desktop.svg
+	for size in 16 24 32 48 64 128 256 512; do \
+		install -D -m 0644 assets/icons/$${size}x$${size}/cast-desktop.png debian/cast-desktop-go/usr/share/icons/hicolor/$${size}x$${size}/apps/cast-desktop.png; \
+	done
