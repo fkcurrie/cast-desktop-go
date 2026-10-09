@@ -197,70 +197,17 @@ func runStart(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Local stream endpoint: %s\n", streamURL)
 
 	if flagDaemon {
-		// Launch background worker
-		exePath, err := os.Executable()
-		if err != nil {
-			return fmt.Errorf("failed to determine executable path: %w", err)
-		}
-
-		daemonLogPath := filepath.Join(os.Getenv("HOME"), ".config", "cast-desktop-go", "daemon.log")
-		logFile, err := os.OpenFile(daemonLogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to open daemon log: %w", err)
-		}
-
-		workerArgs := []string{
-			"_worker",
-			"--device-ip", targetDev.IP,
-			"--device-name", targetDev.Name,
-			"--device-port", strconv.Itoa(targetDev.Port),
-			"--display", display,
-			"--fps", strconv.Itoa(flagFPS),
-			"--res", flagResolution,
-			"--fit", flagFit,
-			"--port", strconv.Itoa(flagPort),
-		}
-
-		proc := exec.Command(exePath, workerArgs...)
-		proc.Stdout = logFile
-		proc.Stderr = logFile
-		proc.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-
-		if err := proc.Start(); err != nil {
-			return fmt.Errorf("failed to start background worker: %w", err)
-		}
-
 		fmt.Println("Waiting for stream initialization...")
-		startWait := time.Now()
-		var activeState *stream.State
-
-		for time.Since(startWait) < 30*time.Second {
-			if !stream.IsProcessRunning(proc.Process.Pid) {
-				break
-			}
-			st, err := stream.LoadState()
-			if err == nil && st.PID > 0 && stream.IsProcessRunning(st.PID) {
-				activeState = st
-				break
-			}
-			time.Sleep(300 * time.Millisecond)
+		st, err := StartBackgroundWorker(targetDev, display, flagFPS, flagResolution, flagFit, flagPort)
+		if err != nil {
+			return err
 		}
-
-		if activeState != nil {
-			fmt.Printf("\nDesktop casting successfully started in background!\n")
-			fmt.Printf("  Target:     %s (%s)\n", targetDev.Name, targetDev.IP)
-			fmt.Printf("  Worker PID: %d\n", proc.Process.Pid)
-			fmt.Printf("  Run 'cast-desktop-go status' to inspect.\n")
-			fmt.Printf("  Run 'cast-desktop-go stop' to end session.\n\n")
-			return nil
-		}
-
-		// Read daemon log snippet if available
-		logBytes, _ := os.ReadFile(daemonLogPath)
-		if len(logBytes) > 0 {
-			return fmt.Errorf("background worker failed to start:\n%s", string(logBytes))
-		}
-		return fmt.Errorf("timed out waiting for background worker (check %s)", daemonLogPath)
+		fmt.Printf("\nDesktop casting successfully started in background!\n")
+		fmt.Printf("  Target:     %s (%s)\n", targetDev.Name, targetDev.IP)
+		fmt.Printf("  Worker PID: %d\n", st.PID)
+		fmt.Printf("  Run 'cast-desktop-go status' to inspect.\n")
+		fmt.Printf("  Run 'cast-desktop-go stop' to end session.\n\n")
+		return nil
 	}
 
 	// Foreground mode
@@ -355,3 +302,114 @@ func executeCastLoop(targetDev *cast.Device, display string, fps int, res string
 
 	return nil
 }
+
+// StartBackgroundWorker spawns the internal _worker process in the background, detached from the terminal.
+func StartBackgroundWorker(targetDev *cast.Device, display string, fps int, res string, fit string, port int) (*stream.State, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine executable path: %w", err)
+	}
+
+	daemonLogPath := filepath.Join(os.Getenv("HOME"), ".config", "cast-desktop-go", "daemon.log")
+	_ = os.MkdirAll(filepath.Dir(daemonLogPath), 0755)
+	logFile, err := os.OpenFile(daemonLogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open daemon log: %w", err)
+	}
+	defer logFile.Close()
+
+	workerArgs := []string{
+		"_worker",
+		"--device-ip", targetDev.IP,
+		"--device-name", targetDev.Name,
+		"--device-port", strconv.Itoa(targetDev.Port),
+		"--display", display,
+		"--fps", strconv.Itoa(fps),
+		"--res", res,
+		"--fit", fit,
+		"--port", strconv.Itoa(port),
+	}
+
+	proc := exec.Command(exePath, workerArgs...)
+	proc.Stdout = logFile
+	proc.Stderr = logFile
+	proc.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+
+	if err := proc.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start background worker: %w", err)
+	}
+
+	startWait := time.Now()
+	var activeState *stream.State
+
+	for time.Since(startWait) < 30*time.Second {
+		if !stream.IsProcessRunning(proc.Process.Pid) {
+			break
+		}
+		st, err := stream.LoadState()
+		if err == nil && st.PID > 0 && stream.IsProcessRunning(st.PID) {
+			activeState = st
+			break
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	if activeState != nil {
+		return activeState, nil
+	}
+
+	logBytes, _ := os.ReadFile(daemonLogPath)
+	if len(logBytes) > 0 {
+		return nil, fmt.Errorf("background worker failed to start:\n%s", string(logBytes))
+	}
+	return nil, fmt.Errorf("timed out waiting for background worker (check %s)", daemonLogPath)
+}
+
+// StartCastingTarget coordinates stopping previous sessions, checking display ratio, and launching background casting to targetDev.
+func StartCastingTarget(targetDev *cast.Device, display string) (*stream.State, error) {
+	_ = stopActiveSession()
+
+	cfg := stream.LoadConfig()
+	res := cfg.Resolution
+	if res == "" {
+		res = "1080p"
+	}
+	fit := cfg.Fit
+	if fit == "" {
+		fit = "pad"
+	}
+	fps := cfg.FPS
+	if fps <= 0 {
+		fps = 30
+	}
+	port := cfg.Port
+	if port <= 0 {
+		port = 8088
+	}
+	if display == "" {
+		display = cfg.Display
+	}
+	if display == "" {
+		display = os.Getenv("DISPLAY")
+	}
+	if display == "" {
+		display = ":20"
+	}
+
+	// 16:9 auto check
+	origW, origH := stream.DetectDisplayResolution(display)
+	if origW == 3840 && origH == 2560 {
+		_ = exec.Command("xrandr", "-display", display, "--output", "DUMMY0", "--mode", "3840x2160_60.00").Run()
+	}
+
+	cfg.DefaultDevice = targetDev.Name
+	cfg.Resolution = res
+	cfg.Fit = fit
+	cfg.FPS = fps
+	cfg.Display = display
+	cfg.Port = port
+	_ = stream.SaveConfig(cfg)
+
+	return StartBackgroundWorker(targetDev, display, fps, res, fit, port)
+}
+

@@ -1,0 +1,38 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Cast Desktop
+GenericName=Chromecast Desktop Streamer
+Comment=Cast your screen and desktop audio to local Chromecast devices
+Exec=cast-desktop-go gui
+Icon=cast-desktop
+Terminal=false
+Categories=AudioVideo;Video;
+Keywords=chromecast;cast;stream;screen;desktop;tv;display;audio;
+StartupNotify=true
+Actions=QuickCast;CastBasement;CastLiving;StopCast;Status;
+
+[Desktop Action QuickCast]
+Name=Quick Cast to Saved Default TV
+Exec=cast-desktop-go gui --quick-cast
+Icon=cast-desktop
+
+[Desktop Action CastBasement]
+Name=Cast to Bigscreen Basement TV
+Exec=cast-desktop-go gui --device "Bigscreen Basement TV"
+Icon=cast-desktop
+
+[Desktop Action CastLiving]
+Name=Cast to Living room TV
+Exec=cast-desktop-go gui --device "Living room TV"
+Icon=cast-desktop
+
+[Desktop Action StopCast]
+Name=Stop Casting
+Exec=cast-desktop-go gui --stop
+Icon=media-playback-stop
+
+[Desktop Action Status]
+Name=Casting Status & Activity
+Exec=cast-desktop-go gui --status
+Icon=dialog-information
