@@ -71,31 +71,37 @@ func init() {
 	workerCmd.Flags().IntVar(&flagPort, "port", 8088, "")
 }
 
-func selectDeviceInteractive(devices []cast.Device) *cast.Device {
+func selectDeviceInteractive(devices []cast.Device, defaultDevice string) *cast.Device {
 	if len(devices) == 1 {
 		return &devices[0]
 	}
 
+	defaultIdx := 1
 	fmt.Printf("\nDiscovered %d Chromecast devices:\n", len(devices))
 	for i, d := range devices {
-		fmt.Printf("  [%d] %s (%s)\n", i+1, d.Name, d.IP)
+		suffix := ""
+		if defaultDevice != "" && strings.EqualFold(d.Name, defaultDevice) {
+			defaultIdx = i + 1
+			suffix = " (saved default)"
+		}
+		fmt.Printf("  [%d] %s (%s)%s\n", i+1, d.Name, d.IP, suffix)
 	}
 
 	if !isatty.IsTerminal(os.Stdin.Fd()) && !isatty.IsCygwinTerminal(os.Stdin.Fd()) {
-		fmt.Printf("Non-interactive terminal detected; defaulting to [%d] %s\n", 1, devices[0].Name)
-		return &devices[0]
+		fmt.Printf("Non-interactive terminal detected; defaulting to [%d] %s\n", defaultIdx, devices[defaultIdx-1].Name)
+		return &devices[defaultIdx-1]
 	}
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Printf("\nSelect a device [1-%d] (default: 1): ", len(devices))
+		fmt.Printf("\nSelect a device [1-%d] (default: %d): ", len(devices), defaultIdx)
 		input, err := reader.ReadString('\n')
 		if err != nil {
-			return &devices[0]
+			return &devices[defaultIdx-1]
 		}
 		input = strings.TrimSpace(input)
 		if input == "" {
-			return &devices[0]
+			return &devices[defaultIdx-1]
 		}
 
 		dev, err := cast.ResolveDevice(input, devices)
@@ -109,6 +115,25 @@ func selectDeviceInteractive(devices []cast.Device) *cast.Device {
 func runStart(cmd *cobra.Command, args []string) error {
 	// First ensure any previous active session is stopped
 	_ = stopActiveSession()
+
+	cfg := stream.LoadConfig()
+
+	// Apply persisted settings if user did not pass explicit flags
+	if !cmd.Flags().Changed("res") && cfg.Resolution != "" {
+		flagResolution = cfg.Resolution
+	}
+	if !cmd.Flags().Changed("fit") && cfg.Fit != "" {
+		flagFit = cfg.Fit
+	}
+	if !cmd.Flags().Changed("fps") && cfg.FPS > 0 {
+		flagFPS = cfg.FPS
+	}
+	if !cmd.Flags().Changed("display") && cfg.Display != "" {
+		flagDisplay = cfg.Display
+	}
+	if !cmd.Flags().Changed("port") && cfg.Port > 0 {
+		flagPort = cfg.Port
+	}
 
 	// 1. Discover devices
 	fmt.Println("Discovering Chromecast devices...")
@@ -125,8 +150,16 @@ func runStart(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+	} else if flagDaemon && cfg.DefaultDevice != "" {
+		// In background mode without explicit device flag, automatically use saved default
+		dev, err := cast.ResolveDevice(cfg.DefaultDevice, devices)
+		if err == nil {
+			targetDev = dev
+		} else {
+			targetDev = selectDeviceInteractive(devices, cfg.DefaultDevice)
+		}
 	} else {
-		targetDev = selectDeviceInteractive(devices)
+		targetDev = selectDeviceInteractive(devices, cfg.DefaultDevice)
 	}
 
 	display := flagDisplay
@@ -137,8 +170,24 @@ func runStart(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Automatically ensure 16:9 mode if display :20 is detected in 3:2 (3840x2560)
+	origW, origH := stream.DetectDisplayResolution(display)
+	if origW == 3840 && origH == 2560 {
+		fmt.Println("Detected 3:2 desktop resolution (3840x2560); switching display to 16:9 4K (3840x2160)...")
+		_ = exec.Command("xrandr", "-display", display, "--output", "DUMMY0", "--mode", "3840x2160_60.00").Run()
+	}
+
+	// Remember settings for next session
+	cfg.DefaultDevice = targetDev.Name
+	cfg.Resolution = flagResolution
+	cfg.Fit = flagFit
+	cfg.FPS = flagFPS
+	cfg.Display = display
+	cfg.Port = flagPort
+	_ = stream.SaveConfig(cfg)
+
 	fmt.Printf("\nPreparing to cast to: %s (%s)\n", targetDev.Name, targetDev.IP)
-	fmt.Printf("Display: %s | Framerate: %d fps | Resolution: %s\n", display, flagFPS, flagResolution)
+	fmt.Printf("Display: %s | Framerate: %d fps | Resolution: %s | Fit: %s\n", display, flagFPS, flagResolution, flagFit)
 
 	localIP, err := cast.GetRouteToTarget(targetDev.IP)
 	if err != nil {
