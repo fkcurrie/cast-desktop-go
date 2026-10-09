@@ -23,6 +23,7 @@ var (
 	flagDisplay    string
 	flagFPS        int
 	flagResolution string
+	flagFit        string
 	flagPort       int
 	flagDaemon     bool
 
@@ -37,6 +38,7 @@ func addStartFlags(c *cobra.Command) {
 	c.Flags().StringVar(&flagDisplay, "display", "", "X11 display to capture (default :20 or $DISPLAY)")
 	c.Flags().IntVar(&flagFPS, "fps", 30, "Capture framerate")
 	c.Flags().StringVar(&flagResolution, "res", "1080p", "Output resolution (1080p, 720p, native)")
+	c.Flags().StringVar(&flagFit, "fit", "pad", "Fit mode: pad (preserve aspect ratio with bars), crop (zoom to fill 16:9), stretch")
 	c.Flags().IntVarP(&flagPort, "port", "p", 8088, "HTTP streaming server port")
 	c.Flags().BoolVarP(&flagDaemon, "daemon", "b", false, "Run cast session in the background")
 }
@@ -65,6 +67,7 @@ func init() {
 	workerCmd.Flags().StringVar(&flagDisplay, "display", "", "")
 	workerCmd.Flags().IntVar(&flagFPS, "fps", 30, "")
 	workerCmd.Flags().StringVar(&flagResolution, "res", "1080p", "")
+	workerCmd.Flags().StringVar(&flagFit, "fit", "pad", "")
 	workerCmd.Flags().IntVar(&flagPort, "port", 8088, "")
 }
 
@@ -165,6 +168,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 			"--display", display,
 			"--fps", strconv.Itoa(flagFPS),
 			"--res", flagResolution,
+			"--fit", flagFit,
 			"--port", strconv.Itoa(flagPort),
 		}
 
@@ -181,7 +185,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 		startWait := time.Now()
 		var activeState *stream.State
 
-		for time.Since(startWait) < 15*time.Second {
+		for time.Since(startWait) < 30*time.Second {
+			if !stream.IsProcessRunning(proc.Process.Pid) {
+				break
+			}
 			st, err := stream.LoadState()
 			if err == nil && st.PID > 0 && stream.IsProcessRunning(st.PID) {
 				activeState = st
@@ -199,12 +206,17 @@ func runStart(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
+		// Read daemon log snippet if available
+		logBytes, _ := os.ReadFile(daemonLogPath)
+		if len(logBytes) > 0 {
+			return fmt.Errorf("background worker failed to start:\n%s", string(logBytes))
+		}
 		return fmt.Errorf("timed out waiting for background worker (check %s)", daemonLogPath)
 	}
 
 	// Foreground mode
 	fmt.Println("\nStarting casting session in foreground (press Ctrl+C to stop)...")
-	return executeCastLoop(targetDev, display, flagFPS, flagResolution, flagPort, streamURL)
+	return executeCastLoop(targetDev, display, flagFPS, flagResolution, flagFit, flagPort, streamURL)
 }
 
 func runWorker(cmd *cobra.Command, args []string) error {
@@ -225,10 +237,10 @@ func runWorker(cmd *cobra.Command, args []string) error {
 	}
 	streamURL := fmt.Sprintf("http://%s:%d/live.m3u8", localIP, flagPort)
 
-	return executeCastLoop(targetDev, display, flagFPS, flagResolution, flagPort, streamURL)
+	return executeCastLoop(targetDev, display, flagFPS, flagResolution, flagFit, flagPort, streamURL)
 }
 
-func executeCastLoop(targetDev *cast.Device, display string, fps int, res string, port int, streamURL string) error {
+func executeCastLoop(targetDev *cast.Device, display string, fps int, res string, fit string, port int, streamURL string) error {
 	// 1. Start HTTP Server
 	srv, err := stream.NewServer(port)
 	if err != nil {
@@ -242,6 +254,7 @@ func executeCastLoop(targetDev *cast.Device, display string, fps int, res string
 		Display:    display,
 		FPS:        fps,
 		Resolution: res,
+		Fit:        fit,
 	}
 
 	ffmpegCmd, err := stream.StartFFmpeg(opts, ffmpegLog)
@@ -250,14 +263,7 @@ func executeCastLoop(targetDev *cast.Device, display string, fps int, res string
 	}
 	defer stream.StopFFmpeg(ffmpegCmd)
 
-	// 3. Connect to Chromecast and begin playback
-	ctrl := cast.NewController(targetDev)
-	if err := ctrl.StartCast(streamURL); err != nil {
-		return fmt.Errorf("failed to launch Chromecast stream: %w", err)
-	}
-	defer ctrl.Close()
-
-	// 4. Save state
+	// 3. Record state once streaming infrastructure is ready
 	st := &stream.State{
 		PID:        os.Getpid(),
 		DeviceName: targetDev.Name,
@@ -268,6 +274,13 @@ func executeCastLoop(targetDev *cast.Device, display string, fps int, res string
 	}
 	_ = stream.SaveState(st)
 	defer stream.ClearState()
+
+	// 4. Connect to Chromecast and begin playback
+	ctrl := cast.NewController(targetDev)
+	if err := ctrl.StartCast(streamURL); err != nil {
+		return fmt.Errorf("failed to launch Chromecast stream: %w", err)
+	}
+	defer ctrl.Close()
 
 	fmt.Printf("\nNow casting desktop to '%s'!\n", targetDev.Name)
 

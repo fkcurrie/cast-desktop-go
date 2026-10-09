@@ -5,7 +5,22 @@ import (
 	"time"
 
 	"github.com/vishen/go-chromecast/application"
+	chromecast "github.com/vishen/go-chromecast/cast"
 )
+
+// liveCastConn wraps the Chromecast TLS connection to inject StreamType = "LIVE"
+// on LoadMediaCommand, ensuring the TV receiver treats the stream as a live broadcast
+// rather than an on-demand video file, eliminating the bottom timeline scrubber bar.
+type liveCastConn struct {
+	*chromecast.Connection
+}
+
+func (c *liveCastConn) Send(requestID int, payload chromecast.Payload, sourceID, destinationID, namespace string) error {
+	if cmd, ok := payload.(*chromecast.LoadMediaCommand); ok {
+		cmd.Media.StreamType = "LIVE"
+	}
+	return c.Connection.Send(requestID, payload, sourceID, destinationID, namespace)
+}
 
 // Controller manages the Chromecast session and playback commands.
 type Controller struct {
@@ -16,8 +31,11 @@ type Controller struct {
 
 // NewController creates a new Controller instance for target device.
 func NewController(dev *Device) *Controller {
+	app := application.NewApplication()
+	conn := &liveCastConn{Connection: chromecast.NewConnection()}
+	app.SetConn(conn)
 	return &Controller{
-		app: application.NewApplication(),
+		app: app,
 		dev: dev,
 	}
 }
@@ -72,6 +90,8 @@ func (c *Controller) StopCast() error {
 	}
 
 	app := application.NewApplication()
+	conn := &liveCastConn{Connection: chromecast.NewConnection()}
+	app.SetConn(conn)
 	if err := app.Start(c.dev.IP, port); err != nil {
 		return fmt.Errorf("failed to connect to Chromecast to stop: %w", err)
 	}

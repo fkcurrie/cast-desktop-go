@@ -16,6 +16,7 @@ type FFmpegOptions struct {
 	Display    string
 	FPS        int
 	Resolution string // "1080p", "720p", "native"
+	Fit        string // "pad" (default), "crop", "stretch"
 }
 
 // DetectDisplayResolution queries xwininfo to determine root window size.
@@ -35,7 +36,40 @@ func DetectDisplayResolution(display string) (int, int) {
 			}
 		}
 	}
-	return 3840, 2560 // Default fallback for current host
+	return 3840, 2160 // Default fallback for current host
+}
+
+func buildVideoFilter(opts FFmpegOptions, origW, origH int) string {
+	if opts.Resolution == "native" {
+		return "format=yuv420p"
+	}
+
+	targetW, targetH := 1920, 1080
+	if opts.Resolution == "720p" {
+		targetW, targetH = 1280, 720
+	}
+
+	switch opts.Fit {
+	case "stretch":
+		return fmt.Sprintf("scale=%d:%d,format=yuv420p", targetW, targetH)
+	case "crop":
+		// Scale and crop to fill the 16:9 frame without black bars
+		if origW*targetH < origH*targetW {
+			// Source is taller than target (e.g. 3:2 vs 16:9): crop top and bottom
+			cropH := (origW * targetH) / targetW
+			return fmt.Sprintf("crop=%d:%d:0:(in_h-out_h)/2,scale=%d:%d,format=yuv420p", origW, cropH, targetW, targetH)
+		}
+		// Source is wider than target: crop left and right
+		cropW := (origH * targetW) / targetH
+		return fmt.Sprintf("crop=%d:%d:(in_w-out_w)/2:0,scale=%d:%d,format=yuv420p", cropW, origH, targetW, targetH)
+	default: // "pad"
+		return fmt.Sprintf(
+			"scale=w='min(%d,trunc(%d*%d/%d/2)*2)':h='min(%d,trunc(%d*%d/%d/2)*2)',pad=%d:%d:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p",
+			targetW, origW, targetH, origH,
+			targetH, origH, targetW, origW,
+			targetW, targetH,
+		)
+	}
 }
 
 // BuildFFmpegArgs generates command-line arguments for FFmpeg.
@@ -43,21 +77,7 @@ func BuildFFmpegArgs(opts FFmpegOptions) []string {
 	origW, origH := DetectDisplayResolution(opts.Display)
 	playlistPath := filepath.Join(StreamDir, "live.m3u8")
 
-	var vfFilter string
-	switch opts.Resolution {
-	case "native":
-		vfFilter = "format=yuv420p"
-	case "720p":
-		vfFilter = fmt.Sprintf(
-			"scale=w='min(1280,trunc(%d*720/%d/2)*2)':h='min(720,trunc(%d*1280/%d/2)*2)',pad=1280:720:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p",
-			origW, origH, origH, origW,
-		)
-	default: // 1080p
-		vfFilter = fmt.Sprintf(
-			"scale=w='min(1920,trunc(%d*1080/%d/2)*2)':h='min(1080,trunc(%d*1920/%d/2)*2)',pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p",
-			origW, origH, origH, origW,
-		)
-	}
+	vfFilter := buildVideoFilter(opts, origW, origH)
 
 	fpsStr := strconv.Itoa(opts.FPS)
 
