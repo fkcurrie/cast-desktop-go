@@ -10,7 +10,7 @@ Terminal=false
 Categories=AudioVideo;Video;
 Keywords=chromecast;cast;stream;screen;desktop;tv;display;audio;
 StartupNotify=true
-Actions=QuickCast;CastBasement;CastLiving;StopCast;Status;
+Actions=QuickCast;CastBasement;CastLiving;StopCast;Status;ToggleMute;VolumeUp;VolumeDown;
 
 [Desktop Action QuickCast]
 Name=Quick Cast to Saved Default TV
@@ -29,10 +29,25 @@ Icon=cast-desktop
 
 [Desktop Action StopCast]
 Name=Stop Casting
-Exec=cast-desktop-go gui --stop
+Exec=cast-desktop-go stop
 Icon=media-playback-stop
 
 [Desktop Action Status]
 Name=Casting Status & Activity
 Exec=cast-desktop-go gui --status
 Icon=dialog-information
+
+[Desktop Action ToggleMute]
+Name=Toggle TV Mute
+Exec=cast-desktop-go mute toggle
+Icon=audio-volume-muted
+
+[Desktop Action VolumeUp]
+Name=TV Volume Up (+5%)
+Exec=cast-desktop-go volume +5
+Icon=audio-volume-high
+
+[Desktop Action VolumeDown]
+Name=TV Volume Down (-5%)
+Exec=cast-desktop-go volume -5
+Icon=audio-volume-low

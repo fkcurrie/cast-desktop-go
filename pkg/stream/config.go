@@ -16,6 +16,12 @@ type Config struct {
 	Fit           string `json:"fit,omitempty"`
 	FPS           int    `json:"fps,omitempty"`
 	Port          int    `json:"port,omitempty"`
+	Preset        string `json:"preset,omitempty"`        // "balanced", "ultra-low", "cinema"
+	HWAccel       string `json:"hw_accel,omitempty"`      // "auto", "vaapi", "nvenc", "none"
+	Border        bool   `json:"border"`                  // privacy border overlay
+	AudioOnly     bool   `json:"audio_only,omitempty"`    // stream audio only
+	AudioSource   string `json:"audio_source,omitempty"`  // pulse/pipewire audio source
+	Monitor       string `json:"monitor,omitempty"`       // monitor name or index
 }
 
 // DefaultConfig returns baseline configuration values.
@@ -27,6 +33,11 @@ func DefaultConfig() *Config {
 		Fit:           "pad",
 		FPS:           30,
 		Port:          8088,
+		Preset:        "balanced",
+		HWAccel:       "auto",
+		Border:        true,
+		AudioOnly:     false,
+		AudioSource:   "default",
 	}
 }
 

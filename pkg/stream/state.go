@@ -20,6 +20,12 @@ type State struct {
 	DeviceIP   string    `json:"device_ip"`
 	Display    string    `json:"display"`
 	Port       int       `json:"port"`
+	Preset     string    `json:"preset,omitempty"`
+	HWAccel    bool      `json:"hw_accel"`
+	AudioOnly  bool      `json:"audio_only"`
+	Monitor    string    `json:"monitor,omitempty"`
+	Window     string    `json:"window,omitempty"`
+	RemoteURL  string    `json:"remote_url,omitempty"`
 	StartedAt  time.Time `json:"started_at"`
 }
 

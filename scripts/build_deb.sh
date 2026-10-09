@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PKG_NAME="cast-desktop-go"
-PKG_VERSION="1.1.0"
+PKG_VERSION="1.2.0"
 PKG_ARCH="amd64"
 DEB_NAME="${PKG_NAME}_${PKG_VERSION}_${PKG_ARCH}.deb"
 BUILD_ROOT="${ROOT_DIR}/build/deb-pkg"
@@ -24,6 +24,7 @@ echo "--> Setting up staging directory structure in ${BUILD_ROOT}..."
 rm -rf "${BUILD_ROOT}"
 mkdir -p "${BUILD_ROOT}/DEBIAN"
 mkdir -p "${BUILD_ROOT}/usr/bin"
+mkdir -p "${BUILD_ROOT}/usr/share/cast-desktop-go"
 mkdir -p "${BUILD_ROOT}/usr/share/applications"
 mkdir -p "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps"
 
@@ -35,10 +36,11 @@ Section: video
 Priority: optional
 Architecture: ${PKG_ARCH}
 Maintainer: fcurrie <fcurrie@localhost>
-Depends: ffmpeg, libnotify-bin, kdialog | zenity
+Depends: ffmpeg, python3, python3-gi, python3-cairo, gir1.2-gtk-3.0, libnotify-bin, kdialog | zenity
 Description: Chromecast Desktop Streamer for Linux
  High-performance screen and audio casting utility for Google Chromecast
- devices with desktop menu integration, resolution matching, and low-latency HLS.
+ devices with AMD VA-API hardware acceleration, web remote, tray icon,
+ latency presets, monitor/window selector, privacy border, and volume controls.
 EOF
 chmod 644 "${BUILD_ROOT}/DEBIAN/control"
 
@@ -103,17 +105,24 @@ chmod 644 "${BUILD_ROOT}/usr/share/applications/cast-desktop.desktop"
 # 8. Install icons
 echo "--> Installing icons..."
 cp "${ROOT_DIR}/assets/icons/scalable/cast-desktop.svg" "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps/cast-desktop.svg"
+ln -sf "cast-desktop.svg" "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps/cast-desktop-go.svg"
 chmod 644 "${BUILD_ROOT}/usr/share/icons/hicolor/scalable/apps/cast-desktop.svg"
 
 for size in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512; do
     if [ -f "${ROOT_DIR}/assets/icons/${size}/cast-desktop.png" ]; then
         mkdir -p "${BUILD_ROOT}/usr/share/icons/hicolor/${size}/apps"
         cp "${ROOT_DIR}/assets/icons/${size}/cast-desktop.png" "${BUILD_ROOT}/usr/share/icons/hicolor/${size}/apps/cast-desktop.png"
+        ln -sf "cast-desktop.png" "${BUILD_ROOT}/usr/share/icons/hicolor/${size}/apps/cast-desktop-go.png"
         chmod 644 "${BUILD_ROOT}/usr/share/icons/hicolor/${size}/apps/cast-desktop.png"
     fi
 done
 
-# 9. Build Debian package
+# 9. Install helper scripts (privacy border overlay)
+echo "--> Installing overlay scripts..."
+cp "${ROOT_DIR}/scripts/border_overlay.py" "${BUILD_ROOT}/usr/share/cast-desktop-go/border_overlay.py"
+chmod 755 "${BUILD_ROOT}/usr/share/cast-desktop-go/border_overlay.py"
+
+# 10. Build Debian package
 echo "--> Packaging with dpkg-deb..."
 dpkg-deb --root-owner-group --build "${BUILD_ROOT}" "${OUTPUT_DIR}/${DEB_NAME}"
 

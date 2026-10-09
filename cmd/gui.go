@@ -193,6 +193,10 @@ var guiCmd = &cobra.Command{
 			uptime := time.Since(st.StartedAt).Truncate(time.Second)
 			prompt := fmt.Sprintf("Desktop casting is currently active on %s (uptime: %s).\n\nWhat would you like to do?", st.DeviceName, uptime)
 			choice, err := showDialogMenu("Cast Desktop - Active Session", prompt, []menuItem{
+				{"remote", "Open Mobile Web Remote Dashboard"},
+				{"vol_up", "Increase TV Volume (+5%)"},
+				{"vol_down", "Decrease TV Volume (-5%)"},
+				{"mute", "Toggle TV Mute"},
 				{"status", "View Status & Stream Details"},
 				{"switch", "Switch to Another Chromecast TV"},
 				{"stop", "Stop Active Casting Session"},
@@ -202,9 +206,28 @@ var guiCmd = &cobra.Command{
 			}
 
 			switch choice {
+			case "remote":
+				url := st.RemoteURL
+				if url == "" {
+					url = fmt.Sprintf("http://localhost:%d/remote", st.Port)
+				}
+				_ = exec.Command("xdg-open", url).Start()
+				return nil
+			case "vol_up":
+				_ = exec.Command("cast-desktop-go", "volume", "+5").Run()
+				sendNotification("Cast Desktop", "TV Volume: +5%", "audio-volume-high")
+				return nil
+			case "vol_down":
+				_ = exec.Command("cast-desktop-go", "volume", "-5").Run()
+				sendNotification("Cast Desktop", "TV Volume: -5%", "audio-volume-low")
+				return nil
+			case "mute":
+				_ = exec.Command("cast-desktop-go", "mute", "toggle").Run()
+				sendNotification("Cast Desktop", "TV Mute Toggled", "audio-volume-muted")
+				return nil
 			case "status":
-				msg := fmt.Sprintf("Active Session:\n\nTarget TV: %s (%s)\nDisplay: %s\nStreaming Port: %d\nUptime: %s\nWorker PID: %d",
-					st.DeviceName, st.DeviceIP, st.Display, st.Port, uptime, st.PID)
+				msg := fmt.Sprintf("Active Session:\n\nTarget TV: %s (%s)\nDisplay: %s\nStreaming Port: %d\nPreset: %s\nUptime: %s\nWorker PID: %d\nWeb Remote: %s",
+					st.DeviceName, st.DeviceIP, st.Display, st.Port, st.Preset, uptime, st.PID, st.RemoteURL)
 				showInfoDialog("Cast Desktop Status", msg)
 				return nil
 			case "stop":

@@ -43,8 +43,29 @@ var statusCmd = &cobra.Command{
 			uptime := time.Since(st.StartedAt).Truncate(time.Second)
 			fmt.Println("Status: CASTING ACTIVE")
 			fmt.Printf("  Target Device: %s (%s)\n", st.DeviceName, st.DeviceIP)
-			fmt.Printf("  Display:       %s\n", st.Display)
+			if st.AudioOnly {
+				fmt.Printf("  Mode:          Audio-Only (Smart Speaker / TV)\n")
+			} else {
+				fmt.Printf("  Display:       %s\n", st.Display)
+				if st.Monitor != "" {
+					fmt.Printf("  Monitor:       %s\n", st.Monitor)
+				}
+				if st.Window != "" {
+					fmt.Printf("  Window:        %s\n", st.Window)
+				}
+			}
+			if st.Preset != "" {
+				fmt.Printf("  Latency Mode:  %s\n", st.Preset)
+			}
+			hwStr := "Software (libx264)"
+			if st.HWAccel {
+				hwStr = "AMD VA-API Hardware GPU"
+			}
+			fmt.Printf("  Encoder:       %s\n", hwStr)
 			fmt.Printf("  Stream Port:   %d\n", st.Port)
+			if st.RemoteURL != "" {
+				fmt.Printf("  Web Remote:    %s\n", st.RemoteURL)
+			}
 			fmt.Printf("  Worker PID:    %d\n", st.PID)
 			fmt.Printf("  Uptime:        %s\n", uptime)
 

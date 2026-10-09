@@ -109,3 +109,137 @@ func (c *Controller) Close() {
 		c.app = nil
 	}
 }
+
+// SetVolume sets the target TV volume level (0.0 to 1.0).
+func (c *Controller) SetVolume(level float32) error {
+	if c.app == nil {
+		return fmt.Errorf("chromecast not connected")
+	}
+	if level < 0 {
+		level = 0
+	}
+	if level > 1.0 {
+		level = 1.0
+	}
+	return c.app.SetVolume(level)
+}
+
+// SetMuted mutes or unmutes the Chromecast device.
+func (c *Controller) SetMuted(muted bool) error {
+	if c.app == nil {
+		return fmt.Errorf("chromecast not connected")
+	}
+	return c.app.SetMuted(muted)
+}
+
+// GetVolume retrieves current volume level and mute status.
+func (c *Controller) GetVolume() (float32, bool, error) {
+	if c.app == nil {
+		return 0, false, fmt.Errorf("chromecast not connected")
+	}
+	_ = c.app.Update()
+	vol := c.app.Volume()
+	if vol == nil {
+		return 0, false, fmt.Errorf("volume status unavailable")
+	}
+	return float32(vol.Level), vol.Muted, nil
+}
+
+// StepVolume increases or decreases volume by a relative delta.
+func (c *Controller) StepVolume(delta float32) error {
+	vol, _, err := c.GetVolume()
+	if err != nil {
+		vol = 0.5
+	}
+	newVol := vol + delta
+	if newVol < 0 {
+		newVol = 0
+	}
+	if newVol > 1.0 {
+		newVol = 1.0
+	}
+	return c.SetVolume(newVol)
+}
+
+// ToggleMute flips the current mute status.
+func (c *Controller) ToggleMute() (bool, error) {
+	_, muted, err := c.GetVolume()
+	if err != nil {
+		muted = false
+	}
+	newMute := !muted
+	return newMute, c.SetMuted(newMute)
+}
+
+// Pause pauses media playback on the Chromecast receiver.
+func (c *Controller) Pause() error {
+	if c.app == nil {
+		return fmt.Errorf("chromecast not connected")
+	}
+	return c.app.Pause()
+}
+
+// Unpause resumes media playback on the Chromecast receiver.
+func (c *Controller) Unpause() error {
+	if c.app == nil {
+		return fmt.Errorf("chromecast not connected")
+	}
+	return c.app.Unpause()
+}
+
+// SendVolumeCommand sets volume on a Chromecast device on-demand.
+func SendVolumeCommand(dev *Device, level float32) error {
+	port := dev.Port
+	if port == 0 {
+		port = 8009
+	}
+	app := application.NewApplication()
+	if err := app.Start(dev.IP, port); err != nil {
+		return fmt.Errorf("failed to connect to Chromecast %s: %w", dev.Name, err)
+	}
+	defer app.Close(false)
+
+	if level < 0 {
+		level = 0
+	}
+	if level > 1.0 {
+		level = 1.0
+	}
+	return app.SetVolume(level)
+}
+
+// SendMuteCommand sets mute state on a Chromecast device on-demand.
+func SendMuteCommand(dev *Device, muted bool) error {
+	port := dev.Port
+	if port == 0 {
+		port = 8009
+	}
+	app := application.NewApplication()
+	if err := app.Start(dev.IP, port); err != nil {
+		return fmt.Errorf("failed to connect to Chromecast %s: %w", dev.Name, err)
+	}
+	defer app.Close(false)
+
+	return app.SetMuted(muted)
+}
+
+// GetDeviceVolume gets current volume and mute state on-demand.
+func GetDeviceVolume(dev *Device) (float32, bool, error) {
+	port := dev.Port
+	if port == 0 {
+		port = 8009
+	}
+	app := application.NewApplication()
+	if err := app.Start(dev.IP, port); err != nil {
+		return 0, false, fmt.Errorf("failed to connect to Chromecast %s: %w", dev.Name, err)
+	}
+	defer app.Close(false)
+
+	_ = app.Update()
+	vol := app.Volume()
+	if vol == nil {
+		return 0, false, fmt.Errorf("could not retrieve volume")
+	}
+	return float32(vol.Level), vol.Muted, nil
+}
+
